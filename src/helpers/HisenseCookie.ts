@@ -1,6 +1,6 @@
 export async function validateHisenseCookie(cookie: string): Promise<string | null> {
   try {
-    const response = await fetch("https://owo-api-production.up.railway.app/hisense/validate-cookie", {
+    const response = await fetch("api/validate-cookie", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cookie }),

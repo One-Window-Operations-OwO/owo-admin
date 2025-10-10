@@ -4,14 +4,14 @@ import { useAppContext } from '@/context/AppProvider';
 import DkmDetails from '@/components/DkmDetails';
 
 export default function Home() {
-  const { schoolData, isLoading, error, npsn, verifierName } = useAppContext();
+  const { dkmData, isLoading, error, npsn, verifierName } = useAppContext();
 
   const renderContent = () => {
     if (isLoading) return <p className="text-center animate-pulse">Mencari data untuk NPSN: <b>{npsn}</b>...</p>;
     if (error) return <p className="text-red-500 font-bold bg-red-100 p-4 rounded-lg">Error: {error}</p>;
     
-    if (schoolData) {
-        return <DkmDetails data={schoolData} />
+    if (dkmData) {
+        return <DkmDetails data={dkmData} />
     }
     
     return (

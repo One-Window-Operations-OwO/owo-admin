@@ -9,57 +9,99 @@ import React, {
   useCallback,
 } from "react";
 import { validateHisenseCookie } from "@/helpers/HisenseCookie";
-import HisenseCookieInput from "@/components/HisenseCookieInput";
+import LoginComponent from "@/components/LoginComponent";
 import Sidebar from "@/components/Sidebar";
 
 // Based on output_owo_api.json
 export interface Ptk {
-  ptk_terdaftar_id: string;
-  ptk_id: string;
-  nama: string;
-  jenis_kelamin: 'L' | 'P';
-  tanggal_lahir: string;
-  nik: string;
-  nuptk: string | null;
-  nip: string | null;
-  nrg: string | null;
-  kepegawaiian: string;
-  jenis_ptk: string;
-  jabatan_ptk: string;
-  nomor_surat_tugas: string;
-  tanggal_surat_tugas: string;
-  tmt_tugas: string;
-  ptk_induk: 'Ya' | 'Tidak';
-  last_update: string;
+  ptk_terdaftar_id?: string;
+  ptk_id?: string;
+  nama?: string;
+  jenis_kelamin?: 'L' | 'P';
+  tanggal_lahir?: string;
+  nik?: string;
+  nuptk?: string | null;
+  nip?: string | null;
+  nrg?: string | null;
+  kepegawaian?: string;
+  jenis_ptk?: string;
+  jabatan_ptk?: string;
+  nomor_surat_tugas?: string;
+  tanggal_surat_tugas?: string;
+  tmt_tugas?: string;
+  ptk_induk?: 'Ya' | 'Tidak';
+  last_update?: string;
 }
 
-export interface Datadik {
-  id: string;
-  name: string;
-  address: string;
-  kecamatan: string;
-  kabupaten: string;
-  provinsi: string;
-  kepalaSekolah: string;
-  ptk: Ptk[];
+export interface DatadikData {
+  id?: string;
+  name?: string;
+  address?: string;
+  kecamatan?: string;
+  kabupaten?: string;
+  provinsi?: string;
+  kepalaSekolah?: string;
+  ptk?: Ptk[];
+  error?: string; // untuk kasus error response
+}
+
+export interface HisenseSchoolInfo {
+  NPSN?: string;
+  Nama?: string;
+  Alamat?: string;
+  Provinsi?: string;
+  Kabupaten?: string;
+  Kecamatan?: string;
+  "Kelurahan/Desa"?: string;
+  Jenjang?: string;
+  Bentuk?: string;
+  Sekolah?: string;
+  Formal?: string;
+  PIC?: string;
+  "Telp PIC"?: string;
+  "Resi Pengiriman"?: string;
+  "Serial Number"?: string;
+  Status?: string;
+  // tambahkan field lain jika ada
+}
+
+export interface HisenseProcessHistory {
+  tanggal?: string;
+  status?: string;
+  keterangan?: string;
 }
 
 export interface HisenseData {
   isGreen: boolean;
-  schoolInfo: { [key: string]: string };
-  images: { [key: string]: string };
-  processHistory: { tanggal: string; status: string; keterangan: string }[];
-  q: string;
-  npsn: string;
+  nextPath?: string | null;
+  schoolInfo?: HisenseSchoolInfo;
+  images?: Record<string, string>;
+  processHistory?: HisenseProcessHistory[];
+  q?: string;
+  npsn?: string;
+  iprop?: string;
+  ikab?: string;
+  ikec?: string;
+  iins?: string;
+  ijenjang?: string;
+  ibp?: string;
+  iss?: string;
+  isf?: string;
+  istt?: string;
+  itgl?: string;
+  itgla?: string;
+  itgle?: string;
+  ipet?: string;
+  ihnd?: string;
 }
 
-export interface SchoolData {
-  datadik: Datadik;
+export interface DkmData {
+  datadik: DatadikData;
   hisense: HisenseData;
 }
 
 interface AppContextType {
-  schoolData: SchoolData | null;
+  dkmData: DkmData | null;
   isLoading: boolean;
   error: string | null;
   npsn: string;
@@ -74,14 +116,40 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [verifierName, setVerifierName] = useState<string | null>(null);
-  const [showCookieModal, setShowCookieModal] = useState(false);
-  const [schoolData, setSchoolData] = useState<SchoolData | null>(null);
+  const [cookieValid, setCookieValid] = useState(false);
+  const [dkmData, setDkmData] = useState<DkmData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [npsn, setNpsn] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
+
+  const getRefreshedCookie = useCallback(async (): Promise<string | null> => {
+    const username = localStorage.getItem("hisense_username");
+    const password = localStorage.getItem("hisense_password");
+
+    if (!username || !password) {
+      return null;
+    }
+
+    try {
+      const res = await fetch("api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (data.phpsessid) {
+        localStorage.setItem("hisense_cookie", data.phpsessid);
+        return data.phpsessid;
+      }
+      return null;
+    } catch (err) {
+      return null;
+    }
+  }, []);
 
   const fetchDataByNpsn = useCallback(async () => {
     if (!npsn) {
@@ -89,25 +157,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
     setIsLoading(true);
-    setSchoolData(null);
+    setDkmData(null);
     setError(null);
 
     try {
-      const cookie = localStorage.getItem("hisense_cookie");
+      let cookie = localStorage.getItem("hisense_cookie");
       if (!cookie) {
-        setShowCookieModal(true);
-        throw new Error("Cookie Hisense tidak ditemukan.");
+        const newCookie = await getRefreshedCookie();
+        if (newCookie) {
+          cookie = newCookie;
+        } else {
+          setShowLoginModal(true);
+          throw new Error("Cookie Hisense tidak ditemukan.");
+        }
       }
 
-      const validName = await validateHisenseCookie(cookie);
+      let validName = await validateHisenseCookie(cookie);
+      if (!validName) {
+        const newCookie = await getRefreshedCookie();
+        if (newCookie) {
+          cookie = newCookie;
+          validName = await validateHisenseCookie(cookie);
+        }
+      }
+
       if (!validName) {
         setVerifierName(null);
-        setShowCookieModal(true);
+        setShowLoginModal(true);
         throw new Error("Cookie Hisense kadaluarsa atau tidak valid.");
       }
       setVerifierName(validName);
 
-      const response = await fetch("https://owo-api-production.up.railway.app/", {
+      const response = await fetch("api/combined", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ q: npsn, cookie }),
@@ -118,62 +199,59 @@ export function AppProvider({ children }: { children: ReactNode }) {
         throw new Error(errorData.detail || "Gagal mengambil data dari API.");
       }
 
-      const data: SchoolData = await response.json();
-      setSchoolData(data);
-
+      const data: DkmData = await response.json();
+      setDkmData(data);
     } catch (err: unknown) {
       if (err instanceof Error) setError(err.message);
       else setError("An unknown error occurred.");
     } finally {
       setIsLoading(false);
     }
-  }, [npsn]);
+  }, [npsn, getRefreshedCookie]);
 
-  const checkCookie = useCallback(() => {
+  const authenticate = useCallback(async () => {
     const savedCookie = localStorage.getItem("hisense_cookie");
+
     if (savedCookie) {
-      validateHisenseCookie(savedCookie).then((validName) => {
-        if (validName) {
-          setVerifierName(validName);
-          setShowCookieModal(false);
-        } else {
-          setVerifierName(null);
-          setShowCookieModal(true);
-        }
-      });
-    } else {
-      setShowCookieModal(true);
+      const validName = await validateHisenseCookie(savedCookie);
+      if (validName) {
+        setCookieValid(true);
+        setVerifierName(validName);
+        setShowLoginModal(false);
+        return;
+      }
     }
-  }, []);
+
+    const newCookie = await getRefreshedCookie();
+    if (newCookie) {
+      const validName = await validateHisenseCookie(newCookie);
+      if (validName) {
+        setCookieValid(true);
+        setVerifierName(validName);
+        setShowLoginModal(false);
+        return;
+      }
+    }
+
+    setShowLoginModal(true);
+  }, [getRefreshedCookie]);
 
   useEffect(() => {
-    checkCookie();
-  }, [checkCookie]);
+    authenticate();
+  }, [authenticate]);
 
-  const handleCookieSuccess = () => {
-    checkCookie();
+  const handleLoginSuccess = () => {
+    authenticate();
   };
 
-  if (showCookieModal && !verifierName) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
-        <div className="bg-white p-6 rounded-2xl shadow-xl w-96 flex flex-col gap-4">
-          <h2 className="text-xl font-bold text-gray-900">
-            Masukkan PHPSESSID
-          </h2>
-          <HisenseCookieInput onSuccess={handleCookieSuccess} />
-          <p className="text-sm text-black">
-            Cookie Hisense diperlukan untuk mengambil data.
-          </p>
-        </div>
-      </div>
-    );
+  if (showLoginModal) {
+    return <LoginComponent onLoginSuccess={handleLoginSuccess} />;
   }
 
   return (
     <AppContext.Provider
       value={{
-        schoolData,
+        dkmData,
         isLoading,
         error,
         npsn,
