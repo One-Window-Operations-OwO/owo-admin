@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import type { DkmData } from "@/context/AppProvider";
 import StickyInfoBox from "./StickyInfoBox";
 import type { HisenseData, HisenseProcessHistory } from "@/context/AppProvider";
@@ -52,6 +52,7 @@ export default function DkmDetails({ data }: { data: DkmData }) {
   const images = (hisense as HisenseData).images || {};
   const processHistory = (hisense as HisenseData).processHistory || [];
   const imageList = Object.values(images);
+  const note = useMemo(() => (hisense as HisenseData).note || {}, [hisense]);
 
   // Fungsi bandingkan string
   const cleanAndCompare = (val1?: string, val2?: string) => {
@@ -245,6 +246,33 @@ export default function DkmDetails({ data }: { data: DkmData }) {
               isMismatched={false}
             />
           </div>
+          {note["Catatan"]?.trim() !== "-" && note["Catatan"]?.trim() && (
+            <div className="py-3 mt-2">
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                CATATAN
+              </label>
+
+              <input
+                type="text"
+                className={`w-full p-2 border rounded-md text-sm focus:outline-none text-gray-800 transition-colors bg-red-100 border-red-400 cursor-pointer`}
+                value={note["Catatan"]}
+                readOnly
+                onClick={() => {
+                  const bukti = note["bukti"] || "";
+
+                  // Regex ambil URL dari window.open('...')
+                  const match = bukti.match(/window\.open\('([^']+)'\)/);
+                  const url = match ? match[1] : null;
+
+                  if (url) {
+                    window.open(url, "_blank");
+                  } else {
+                    console.warn("URL bukti tidak ditemukan:", bukti);
+                  }
+                }}
+              />
+            </div>
+          )}
         </div>
         <div>
           <button
@@ -298,6 +326,8 @@ export default function DkmDetails({ data }: { data: DkmData }) {
               </table>
             </div>
           )}
+          
+          
         </div>
         <div>
           <button

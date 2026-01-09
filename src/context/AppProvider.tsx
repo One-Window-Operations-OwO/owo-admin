@@ -75,6 +75,7 @@ export interface HisenseData {
   isGreen: boolean;
   nextPath?: string | null;
   schoolInfo?: HisenseSchoolInfo;
+  note?: Record<string, string>;
   images?: Record<string, string>;
   processHistory?: HisenseProcessHistory[];
   q?: string;
