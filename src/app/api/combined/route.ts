@@ -101,9 +101,28 @@ async function getHisense(npsn: string, cookie: string) {
 
   const images: { [key: string]: string } = {};
   $dkm("#flush-collapseTwo img").each((_, el) => {
-    const label = $dkm(el).closest(".card").find("label > b").text().trim();
+    const label = $dkm(el).closest(".card").find("label").text().trim();
     const src = $dkm(el).attr("src");
     if (label && src) images[label] = src;
+  });
+
+  const note: { [key: string]: string } = {};
+  $dkm("#flush-collapseTwo #icttn").each((_, el) => {
+    const card = $dkm(el);
+
+    const label = $dkm(el)
+      .closest(".col-md")
+      .find("label")
+      .first()
+      .text()
+      .trim();
+    const catatan = (card.val() ?? "").toString().trim();
+    const buktiLink =
+      card.closest(".col-md").find(".form-group a").attr("onclick") || "";
+
+    if (label) note[label] = catatan;
+    if (buktiLink.trim()) note["bukti"] = buktiLink;
+    console.log({ label, catatan, buktiLink });
   });
 
   const processHistory: { tanggal: string; status: string; keterangan: string }[] = [];
@@ -119,6 +138,7 @@ async function getHisense(npsn: string, cookie: string) {
   const qs = new URLSearchParams(nextPath);
   const finalData = {
     schoolInfo,
+    note,
     images,
     processHistory,
     q: qs.get("q") || "",
